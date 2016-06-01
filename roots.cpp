@@ -225,7 +225,7 @@ int format_volume(const char* volume) {
         return 0;
     }
 
-    if (strcmp(v->fs_type, "ext4") == 0 || strcmp(v->fs_type, "f2fs") == 0) {
+    if (strcmp(v->fs_type, "ext4") == 0 || strcmp(v->fs_type, "f2fs") == 0 || strcmp(v->fs_type, "btrfs") == 0) {
         // if there's a key_loc that looks like a path, it should be a
         // block device for storing encryption metadata.  wipe it too.
         if (v->key_loc != NULL && v->key_loc[0] == '/') {
@@ -248,6 +248,18 @@ int format_volume(const char* volume) {
         int result;
         if (strcmp(v->fs_type, "ext4") == 0) {
             result = make_ext4fs(v->blk_device, length, volume, sehandle);
+        } else if (strcmp(v->fs_type, "btrfs") == 0) {
+            //if (v->key_loc != NULL && strcmp(v->key_loc, "footer") == 0 && length < 0) {
+            //    LOGE("format_volume: crypt footer + negative length (%zd) not supported on %s\n", length, v->fs_type);
+            //    return -1;
+            //}
+            if (length < 0) {
+                LOGE("format_volume: negative length (%zd) not supported on %s\n", length, v->fs_type);
+                return -1;
+            }
+            const char *btrfs_path = "/sbin/mkfs.btrfs";
+            const char* const btrfs_argv[] = {"mkfs.btrfs", "-f", "-K", v->blk_device, NULL};
+            result = exec_cmd(btrfs_path, (char* const*)btrfs_argv);
         } else {   /* Has to be f2fs because we checked earlier. */
             if (v->key_loc != NULL && strcmp(v->key_loc, "footer") == 0 && length < 0) {
                 LOGE("format_volume: crypt footer + negative length (%zd) not supported on %s\n", length, v->fs_type);

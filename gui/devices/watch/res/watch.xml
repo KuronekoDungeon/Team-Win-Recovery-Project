@@ -1275,6 +1275,25 @@
 			</object>
 
 			<object type="button">
+				<condition var1="tw_partition_btrfs" op="=" var2="1" />
+				<placement x="%col1_x%" y="%row5_y%" />
+				<text>BTRFS</text>
+				<actions>
+					<action function="set">tw_back=refreshfilesystem</action>
+					<action function="set">tw_action=changefilesystem</action>
+					<action function="set">tw_action_param=%tw_partition_mount_point%</action>
+					<action function="set">tw_action_new_file_system=btrfs</action>
+					<action function="set">tw_has_action2=0</action>
+					<action function="set">tw_text1=Change %tw_partition_name% to BTRFS?</action>
+					<action function="set">tw_text2=</action>
+					<action function="set">tw_action_text1=Formatting...</action>
+					<action function="set">tw_complete_text1=Format Complete</action>
+					<action function="set">tw_slider_text=Swipe to Change</action>
+					<action function="page">confirm_action</action>
+				</actions>
+			</object>
+
+			<object type="button">
 				<condition var1="tw_partition_vfat" op="=" var2="1" />
 				<placement x="%col1_x%" y="%row4_y%" />
 				<text>FAT</text>

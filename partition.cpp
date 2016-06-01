@@ -632,6 +632,7 @@ bool TWPartition::Is_File_System(string File_System) {
 		File_System == "yaffs2" ||
 		File_System == "exfat" ||
 		File_System == "f2fs" ||
+		File_System == "btrfs" ||
 		File_System == "auto")
 		return true;
 	else
@@ -1224,6 +1225,8 @@ bool TWPartition::Wipe(string New_File_System) {
 			wiped = Wipe_MTD();
 		else if (New_File_System == "f2fs")
 			wiped = Wipe_F2FS();
+		else if (New_File_System == "btrfs")
+			wiped = Wipe_BTRFS();
 		else if (New_File_System == "ntfs")
 			wiped = Wipe_NTFS();
 		else {
@@ -1294,6 +1297,8 @@ bool TWPartition::Can_Repair() {
 	else if (Current_File_System == "exfat" && TWFunc::Path_Exists("/sbin/fsck.exfat"))
 		return true;
 	else if (Current_File_System == "f2fs" && TWFunc::Path_Exists("/sbin/fsck.f2fs"))
+		return true;
+	else if (Current_File_System == "btrfs" && TWFunc::Path_Exists("/sbin/fsck.btrfs"))
 		return true;
 	else if (Current_File_System == "ntfs" && (TWFunc::Path_Exists("/sbin/ntfsfix") || TWFunc::Path_Exists("/sbin/fsck.ntfs")))
 		return true;
@@ -1370,6 +1375,25 @@ bool TWPartition::Repair() {
 		gui_msg(Msg("repairing_using=Repairing {1} using {2}...")(Display_Name)("fsck.f2fs"));
 		Find_Actual_Block_Device();
 		command = "/sbin/fsck.f2fs " + Actual_Block_Device;
+		LOGINFO("Repair command: %s\n", command.c_str());
+		if (TWFunc::Exec_Cmd(command) == 0) {
+			gui_msg("done=Done.");
+			return true;
+		} else {
+			gui_msg(Msg(msg::kError, "unable_repair=Unable to repair {1}.")(Display_Name));
+			return false;
+		}
+	}
+	if (Current_File_System == "btrfs") {
+		if (!TWFunc::Path_Exists("/sbin/fsck.btrfs")) {
+			gui_msg(Msg(msg::kError, "repair_not_exist={1} does not exist! Cannot repair!")("fsck.btrfs"));
+			return false;
+		}
+		if (!UnMount(true))
+			return false;
+		gui_msg(Msg("repairing_using=Repairing {1} using {2}...")(Display_Name)("fsck.btrfs"));
+		Find_Actual_Block_Device();
+		command = "/sbin/fsck.btrfs " + Actual_Block_Device;
 		LOGINFO("Repair command: %s\n", command.c_str());
 		if (TWFunc::Exec_Cmd(command) == 0) {
 			gui_msg("done=Done.");
@@ -1929,6 +1953,43 @@ bool TWPartition::Wipe_F2FS() {
 	return false;
 }
 
+bool TWPartition::Wipe_BTRFS() {
+	string command;
+
+	if (TWFunc::Path_Exists("/sbin/mkfs.btrfs")) {
+		if (!UnMount(true))
+			return false;
+
+		gui_msg(Msg("formatting_using=Formatting {1} using {2}...")(Display_Name)("mkfs.btrfs"));
+		Find_Actual_Block_Device();
+		command = "mkfs.btrfs -f -K";
+		//if (!Is_Decrypted && Length != 0) {
+			// Only use length if we're not decrypted
+		//	char len[32];
+		//	int mod_length = Length;
+		//	if (Length < 0)
+		//		mod_length *= -1;
+		//	sprintf(len, "%i", mod_length);
+		//	command += " -r ";
+		//	command += len;
+		//}
+		command += " " + Actual_Block_Device;
+		if (TWFunc::Exec_Cmd(command) == 0) {
+			Recreate_AndSec_Folder();
+			gui_msg("done=Done.");
+			return true;
+		} else {
+			gui_msg(Msg(msg::kError, "unable_to_wipe=Unable to wipe {1}.")(Display_Name));
+			return false;
+		}
+		return true;
+	} else {
+		LOGINFO("mkfs.btrfs binary not found, using rm -rf to wipe.\n");
+		return Wipe_RMRF();
+	}
+	return false;
+}
+
 bool TWPartition::Wipe_NTFS() {
 	string command;
 	string Ntfsmake_Binary;
@@ -2409,6 +2470,8 @@ uint64_t TWPartition::Get_Max_FileSize() {
 		maxFileSize = 2 * constTB; //2 TB
 	else if (Current_File_System == "f2fs")
 		maxFileSize = 3.94 * constTB; //3.94 TB
+	else if (Current_File_System == "btrfs")
+		maxFileSize = 16 * constEB; //16 EB
 	else
 		maxFileSize = 100000000L;
 	return maxFileSize - 1;
