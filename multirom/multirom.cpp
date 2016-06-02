@@ -37,6 +37,7 @@ extern "C" {
 
 #include "../libblkid/include/blkid.h"
 #include "cp_xattrs/libcp_xattrs.h"
+#include "../progresstracking.hpp"
 
 std::string MultiROM::m_path = "";
 std::string MultiROM::m_boot_dev = "";
@@ -2125,16 +2126,17 @@ bool MultiROM::installFromBackup(std::string name, std::string path, int type)
 	if(path.find("/data/media") == 0)
 		path.replace(0, 5, REALDATA);
 
-	unsigned long long total_restore_size = 0, already_restored_size = 0;
-	const int partCnt = has_data ? 2 : 1;
+	//unsigned long long total_restore_size = 0, already_restored_size = 0;
+	//const int partCnt = has_data ? 2 : 1;
+        ProgressTracking progress(1);
 	bool res = false;
 	TWPartition *sys_part = PartitionManager.Find_Partition_By_Path("/system");
 	TWPartition *data_part = PartitionManager.Find_Partition_By_Path("/data");
 	if(sys_part && data_part)
 	{
 		PartitionManager.Set_Restore_Files(path);
-		res = PartitionManager.Restore_Partition(sys_part, path, partCnt, &total_restore_size, &already_restored_size) &&
-				(!has_data || PartitionManager.Restore_Partition(data_part, path, partCnt, &total_restore_size, &already_restored_size));
+		res = PartitionManager.Restore_Partition(sys_part, path, &progress) &&
+				(!has_data || PartitionManager.Restore_Partition(data_part, path, &progress));
 	}
 	else
 	{
